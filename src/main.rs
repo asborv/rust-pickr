@@ -39,7 +39,10 @@ fn main() {
             }
             Ok(Action::Edit) => todo!("edit"),
             Ok(Action::See) => todo!("see"),
-            Ok(Action::Quit) => todo!("quit"),
+            Ok(Action::Quit) => {
+                println!("Goodbye! 👋");
+                std::process::exit(0);
+            },
             Err(e)  => panic!("{}", e)
         };
     }
