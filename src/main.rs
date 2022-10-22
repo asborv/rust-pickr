@@ -4,15 +4,20 @@ use core::panic;
 
 
 fn main() {
+    let contacts = vec![
+        Person { name: String::from("Ole Johnny Pettersen"), age: 56, email: String::from("oj.pettersen@gmail.com")},
+        Person { name: String::from("Jon-Roger Valhammer"), age: 43, email: String::from("jonrog@online.no") }
+    ];
+        
     // prompt user for action
 
     let actions: Vec<Action> = Action::iter().collect();
     let mut events: Vec<Event> = vec![];
 
     loop {
-        let action = match Select::new("What do you want to do?", actions.to_vec()).prompt() {
+        match Select::new("What do you want to do?", actions.to_vec()).prompt() {
             Ok(Action::New) => {
-                let event = Event::new();
+                let event = Event::new(&contacts);
                 println!("{:?}", event);
                 events.push(event);
             },
@@ -23,7 +28,7 @@ fn main() {
                     continue;
                 }
 
-                let to_delete = match Select::new("Which event to you want to delete", events.to_vec()).prompt() {
+                let to_delete = match Select::new("Which event to you want to delete?", events.to_vec()).prompt() {
                     Ok(e) => e,
                     Err(e) => panic!("{}", e)
                 };
@@ -37,7 +42,33 @@ fn main() {
                     Err(e) => panic!("{}", e),
                 }
             }
-            Ok(Action::Edit) => todo!("edit"),
+            Ok(Action::Edit) => {
+                if events.is_empty() {
+                    println!("There are no events to edit.");
+                    continue;
+                }
+                
+                // Select event to edit
+                let to_edit = match Select::new("Which event do you want to edit?", events.to_vec()).prompt() {
+                    Ok(e) => e,
+                    Err(e) => panic!("{}", e)
+                };
+
+                // Remove event to be edited from events, and store it
+                events.retain(|e| *e != to_edit);
+                let mut event = to_edit.clone();
+                
+                // Edit props of event until happy
+                loop {
+                    event = match Select::new("Select the property you want to edit? (OK to apply changes)", vec!["name", "notes", "invitees", "category", "OK"]).prompt() {
+                        Ok("OK")     => break,
+                        Ok(field)    => Event::edit(&to_edit, field, &contacts),
+                        Err(e)       => panic!("{}", e)
+                    };
+                }
+                
+                events.push(event);
+            },
             Ok(Action::See) => todo!("see"),
             Ok(Action::Quit) => {
                 println!("Goodbye! 👋");
@@ -58,7 +89,7 @@ struct Event {
 }
 
 impl Event {
-    fn new() -> Event {
+    fn new(contacts: &Vec<Person>) -> Event {
         let name = match Text::new("What should the event be called?").prompt() {
             Ok(v)  => v,
             Err(e) => panic!("{}", e)
@@ -75,12 +106,7 @@ impl Event {
             Err(e)    => panic!("{}", e)
         };
 
-        let contacts = vec![
-            Person { name: String::from("Ole Johnny Pettersen"), age: 56, email: String::from("oj.pettersen@gmail.com")},
-            Person { name: String::from("Jon-Roger Valhammer"), age: 43, email: String::from("jonrog@online.no") }
-        ];
-        
-        let invitees = match MultiSelect::new("Whom do you want to invite?", contacts).prompt() {
+        let invitees = match MultiSelect::new("Whom do you want to invite?", contacts.to_vec()).prompt() {
             Ok(p)  => p,
             Err(e) => panic!("{}", e)
         };
@@ -92,6 +118,36 @@ impl Event {
 
         let event = Event { name, notes, invitees, category };
         event
+    }
+
+    fn edit(event: &Event, field: &str, contacts: &Vec<Person>) -> Event {
+        let new_event = match field {
+            "name" => match Text::new("What should the event be called?").prompt() {
+                Ok(name)  => Event { name, ..event.clone() },
+                Err(e)    => panic!("{}", e)
+            },
+            "notes" => match Confirm::new("Do you want any notes?").prompt() {
+                Ok(true) => {
+                    match Editor::new("Write your notes:").prompt() {
+                        Ok(notes)  => Event { notes, ..event.clone() },
+                        Err(e)     => panic!("{}", e)
+                    }
+                },
+                Ok(false) => event.clone(),
+                Err(e)    => panic!("{}", e)
+            },
+            "invitees" => match MultiSelect::new("Whom do you want to invite?", contacts.to_vec()).prompt() {
+                Ok(invitees)  => Event { invitees, ..event.clone() },
+                Err(e) => panic!("{}", e)
+            },
+            "category" => match Select::new("How do you want to categorize this event?", Category::iter().collect()).prompt() {
+                Ok(category)  => Event { category, ..event.clone() },
+                Err(e) => panic!("{}", e)
+            },
+            _ => panic!("Unimplemeted field: {}", field)
+        };
+
+        new_event
     }
 }
 
