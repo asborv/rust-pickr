@@ -18,6 +18,11 @@ fn main() {
             },
 
             Ok(Action::Delete) => {
+                if events.is_empty() {
+                    println!("No events left.");
+                    continue;
+                }
+
                 let to_delete = match Select::new("Which event to you want to delete", events.to_vec()).prompt() {
                     Ok(e) => e,
                     Err(e) => panic!("{}", e)
@@ -32,8 +37,10 @@ fn main() {
                     Err(e) => panic!("{}", e),
                 }
             }
-            Err(e) => panic!("{}", e),
-            _  => panic!("Not implemented yet")
+            Ok(Action::Edit) => todo!("edit"),
+            Ok(Action::See) => todo!("see"),
+            Ok(Action::Quit) => todo!("quit"),
+            Err(e)  => panic!("{}", e)
         };
     }
 }
