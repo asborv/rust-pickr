@@ -9,74 +9,101 @@ fn main() {
         Person { name: String::from("Jon-Roger Valhammer"), age: 43, email: String::from("jonrog@online.no") }
     ];
         
-    // prompt user for action
-
     let actions: Vec<Action> = Action::iter().collect();
     let mut events: Vec<Event> = vec![];
 
     loop {
+        // Prompt user for action
         match Select::new("What do you want to do?", actions.to_vec()).prompt() {
+            
+            // ACTION: new event
             Ok(Action::New) => {
-                let event = Event::new(&contacts);
-                println!("{:?}", event);
+                let event = match Event::new(&contacts) {
+                    Some(event) => event,
+                    None => continue
+                };
+                
                 events.push(event);
             },
 
+            // ACTION: delete event
             Ok(Action::Delete) => {
                 if events.is_empty() {
                     println!("No events left.");
                     continue;
                 }
 
+                // Prompt user for event to delete
                 let to_delete = match Select::new("Which event to you want to delete?", events.to_vec()).prompt() {
-                    Ok(e) => e,
-                    Err(e) => panic!("{}", e)
+                    Ok(e)  => e,
+                    Err(_) => continue
                 };
 
+                // Confirm deletion
                 match Confirm::new(&format!("Do you want to delete {}?", to_delete)).prompt() {
                     Ok(true) => {
                         events.retain(|e| *e != to_delete);
                         println!("Event {} successfully deleted.", to_delete.name);
                     },
                     Ok(false) => println!("Ok, no events deleted."),
-                    Err(e) => panic!("{}", e),
+                    Err(_) => continue
                 }
             }
+
+            // ACTION: edit event
             Ok(Action::Edit) => {
+                
+                // Early return if no events
                 if events.is_empty() {
                     println!("There are no events to edit.");
                     continue;
                 }
                 
-                // Select event to edit
+                // Prompt user for event to edit
                 let to_edit = match Select::new("Which event do you want to edit?", events.to_vec()).prompt() {
-                    Ok(e) => e,
-                    Err(e) => panic!("{}", e)
+                    Ok(e)  => e,
+                    Err(_) => continue
                 };
 
-                // Remove event to be edited from events, and store it
-                events.retain(|e| *e != to_edit);
+                // Fallback to original event if user cancels or does not edit
                 let mut event = to_edit.clone();
                 
                 // Edit props of event until happy
                 loop {
                     event = match Select::new("Select the property you want to edit? (OK to apply changes)", vec!["name", "notes", "invitees", "category", "OK"]).prompt() {
-                        Ok("OK")     => break,
-                        Ok(field)    => Event::edit(&to_edit, field, &contacts),
-                        Err(e)       => panic!("{}", e)
+                        // Apply changes if any have been made
+                        Ok("OK") => {
+                            if event != to_edit {
+                                println!("Event {} successfully edited.", event.name);
+                                events.retain(|e| *e != to_edit);
+                                events.push(event);
+                            } else {
+                                println!("No changes made.");
+                            }
+
+                            break;
+                        },
+                        // Change some field
+                        Ok(field) => match Event::edit(&to_edit, field, &contacts) {
+                            Some(e) => e,
+                            None    => continue
+                        },
+                        //  Cancel
+                        Err(_) => break
                     };
                 }
-                
-                events.push(event);
             },
             Ok(Action::See) => todo!("see"),
+            
+            // ACTION: quit
             Ok(Action::Quit) => {
                 println!("Goodbye! 👋");
-                std::process::exit(0);
+                break;
             },
             Err(e)  => panic!("{}", e)
         };
     }
+    std::process::exit(0);
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -89,65 +116,77 @@ struct Event {
 }
 
 impl Event {
-    fn new(contacts: &Vec<Person>) -> Event {
+    fn new(contacts: &Vec<Person>) -> Option<Event> {
+        
+        // Prompt user for name
         let name = match Text::new("What should the event be called?").prompt() {
             Ok(v)  => v,
-            Err(e) => panic!("{}", e)
+            Err(_) => return None
         };
 
+        // Prompt user for notes
         let notes = match Confirm::new("Do you want any notes?").prompt() {
             Ok(true) => {
                 match Editor::new("Write your notes:").prompt() {
                     Ok(v)  => v,
-                    Err(e) => panic!("{}", e)
+                    Err(_) => return None
                 }
             },
             Ok(false) => String::from(""),
-            Err(e)    => panic!("{}", e)
+            Err(_)    => return None
         };
 
+        // Prompt user for invitees
         let invitees = match MultiSelect::new("Whom do you want to invite?", contacts.to_vec()).prompt() {
             Ok(p)  => p,
-            Err(e) => panic!("{}", e)
+            Err(_) => return None
         };
 
+        // Prompt user for category
         let category = match Select::new("How do you want to categorize this event?", Category::iter().collect()).prompt() {
             Ok(c)  => c,
-            Err(e) => panic!("{}", e)
+            Err(_) => return None
         };
 
+        // Return event
         let event = Event { name, notes, invitees, category };
-        event
+        Some(event)
     }
 
-    fn edit(event: &Event, field: &str, contacts: &Vec<Person>) -> Event {
+    fn edit(event: &Event, field: &str, contacts: &Vec<Person>) -> Option<Event> {
+        
+        // Edit field
         let new_event = match field {
+            
+            // Edit name
             "name" => match Text::new("What should the event be called?").prompt() {
                 Ok(name)  => Event { name, ..event.clone() },
-                Err(e)    => panic!("{}", e)
+                Err(_)    => return None
             },
-            "notes" => match Confirm::new("Do you want any notes?").prompt() {
-                Ok(true) => {
-                    match Editor::new("Write your notes:").prompt() {
-                        Ok(notes)  => Event { notes, ..event.clone() },
-                        Err(e)     => panic!("{}", e)
-                    }
-                },
-                Ok(false) => event.clone(),
-                Err(e)    => panic!("{}", e)
+
+            // Edit notes
+            "notes" => match Editor::new("Write your notes:").prompt() {
+                Ok(notes) => Event { notes, ..event.clone() },
+                Err(_)    => return None
             },
+
+            // Edit invitees
             "invitees" => match MultiSelect::new("Whom do you want to invite?", contacts.to_vec()).prompt() {
-                Ok(invitees)  => Event { invitees, ..event.clone() },
-                Err(e) => panic!("{}", e)
+                Ok(invitees) => Event { invitees, ..event.clone() },
+                Err(_)       => return None
             },
+
+            // Edit category
             "category" => match Select::new("How do you want to categorize this event?", Category::iter().collect()).prompt() {
                 Ok(category)  => Event { category, ..event.clone() },
-                Err(e) => panic!("{}", e)
+                Err(_) => return None
             },
+            
+            // Field not found
             _ => panic!("Unimplemeted field: {}", field)
         };
 
-        new_event
+        Some(new_event)
     }
 }
 
@@ -182,6 +221,6 @@ impl std::fmt::Display for Person {
 
 impl std::fmt::Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} for {} with {:?}", self.name, self.category, self.invitees)
+        write!(f, "{}", self.name)
     }
 }
