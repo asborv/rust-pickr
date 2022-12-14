@@ -11,8 +11,14 @@ impl Person {
   }
 }
 
+// impl std::fmt::Debug for Person {
+//   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//     write!(f, "{} ({}); {}", self.name, self.age, self.email)
+//   }
+// }
+
 impl std::fmt::Display for Person {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} ({}); {}", self.name, self.age, self.email)
+    write!(f, "{}", self.name)
   }
 }

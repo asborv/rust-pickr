@@ -3,7 +3,7 @@ use crate::person::Person;
 use inquire::{Confirm, Editor, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Event {
   name: String,
   // date: DateTime<Local>,
@@ -117,6 +117,26 @@ impl Event {
 
 impl std::fmt::Display for Event {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.name)
+    write!(
+      f,
+      "{} {}",
+      self.name,
+      if self.invitees.is_empty() {
+        "alone".to_string()
+      } else {
+        format!("with {}", self.invitees.iter().map(|p| p.to_string()).collect::<Vec<String>>().join(", "))
+      })
+  }
+}
+
+impl std::fmt::Debug for Event {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{} {} ({}); {}",
+      self.name,
+      if self.invitees.is_empty() { "alone".to_string() } else { format!("with {}", self.name) },
+      self.category,
+      if self.notes.is_empty() { "no notes" } else { &self.notes })
   }
 }

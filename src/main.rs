@@ -112,7 +112,17 @@ fn main() {
         }
       }
 
-      Ok(Action::See) => todo!("see"),
+      Ok(Action::See) => {
+        if events.is_empty() {
+          println!("There are no events to see.");
+          continue;
+        };
+        let selected = match Select::new("Which event do you want to see?", events.to_vec()).prompt() {
+          Ok(e) => e,
+          Err(_) => continue,
+        };
+        println!("Here is some more information about {}:\n{:?}", selected, selected);
+      },
 
       // ACTION: quit
       Ok(Action::Quit) => {
