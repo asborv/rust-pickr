@@ -10,7 +10,7 @@ use crate::action::Action;
 use crate::event::Event;
 use crate::person::Person;
 use core::panic;
-use std::fs::{self, File};
+use std::fs::{self};
 use std::path::Path;
 
 fn main() {
@@ -57,7 +57,7 @@ fn main() {
       Ok(Action::Manage) => {
         match Select::new(
           "What do you want to do?",
-          vec!["edit", "delete", "save", "load"],
+          vec!["edit", "save", "load", "delete"],
         )
         .prompt()
         {
@@ -143,7 +143,7 @@ fn main() {
 
             // Prompt user for file to save to
             let name = match Text::new("Which file do you want to save to?").prompt() {
-              Ok(f) => f,
+              Ok(f) => f + ".json",
               Err(_) => continue,
             };
 
@@ -182,7 +182,54 @@ fn main() {
               Err(e) => panic!("{}", e),
             }
           }
-          Ok("load") => todo!(),
+          Ok("load") => {
+            // Get list of files in events directory
+            let files = match fs::read_dir("events") {
+              Ok(f) => f
+                .map(|file| file.unwrap().file_name().into_string().unwrap())
+                .collect(),
+              Err(e) => panic!("{}", e),
+            };
+
+            // Prompt user for file to load from
+            let name = match Select::new("Which file do you want to load form?", files).prompt() {
+              Ok(f) => f,
+              Err(_) => continue,
+            };
+            let path = Path::new("events").join(&name);
+
+            // Read file contents
+            let contents = match fs::read_to_string(path) {
+              Ok(c) => c,
+              Err(e) => panic!("{}", e),
+            };
+
+            // Deserialize events from file
+            let deserialized = match serde_json::from_str(&contents) {
+              Ok(d) => d,
+              Err(e) => panic!("{}", e),
+            };
+
+            // Confirm overwrite if there are events in the active session
+            if !events.is_empty() {
+              match Confirm::new(
+                "There are events in the active session. Do you want to overwrite them?",
+              )
+              .prompt()
+              {
+                Ok(true) => {}
+                Ok(false) => {
+                  println!("Ok, no events loaded.");
+                  continue;
+                }
+                Err(e) => panic!("{}", e),
+              }
+            }
+            // Write events to active session if there are no events,
+            // or user confirms overwrite
+            events = deserialized;
+            println!("Events successfully loaded from {}.", name);
+          }
           Err(e) => panic!("{}", e),
           Ok(_) => unreachable!(),
         };
