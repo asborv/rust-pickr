@@ -135,7 +135,11 @@ impl std::fmt::Debug for Event {
       f,
       "{} {} ({}); {}",
       self.name,
-      if self.invitees.is_empty() { "alone".to_string() } else { format!("with {}", self.name) },
+      if self.invitees.is_empty() {
+        "alone".to_string()
+      } else {
+        format!("with {}", self.invitees.iter().map(|p| p.to_string()).collect::<Vec<String>>().join(", "))
+      },
       self.category,
       if self.notes.is_empty() { "no notes" } else { &self.notes })
   }

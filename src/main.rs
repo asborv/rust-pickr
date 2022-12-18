@@ -122,6 +122,42 @@ fn main() {
           Err(_) => continue,
         };
         println!("Here is some more information about {}:\n{:?}", selected, selected);
+        match Confirm::new("Do you want to edit the event?").prompt() {
+          Ok(true) => {
+            let mut event = selected.clone();
+            loop {
+              event = match Select::new(
+                "Select the property you want to edit? (OK to apply changes)",
+                vec!["name", "notes", "invitees", "category", "OK"],
+              ).prompt()
+              {
+                // Apply changes if any have been made
+                Ok("OK") => {
+                  if event != selected {
+                    println!("Event {} successfully edited.", event.get_name());
+                    events.retain(|e| *e != selected);
+                    events.push(event);
+                  } else {
+                    println!("No changes made.");
+                  }
+
+                  break;
+                }
+
+                // Change some field
+                Ok(field) => match Event::edit(&selected, field, &contacts) {
+                  Some(e) => e,
+                  None => continue,
+                },
+
+                //  Cancel
+                Err(_) => break,
+              };
+            }
+          }
+          Ok(false) => continue,
+          Err(_) => continue
+        }
       },
 
       // ACTION: quit
