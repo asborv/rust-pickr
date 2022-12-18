@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Person {
   name: String,
   age: u16,

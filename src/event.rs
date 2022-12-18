@@ -2,8 +2,9 @@ use crate::category::Category;
 use crate::person::Person;
 use inquire::{Confirm, Editor, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
+use serde::{Serialize, Deserialize};
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub struct Event {
   name: String,
   // date: DateTime<Local>,
