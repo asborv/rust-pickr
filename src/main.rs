@@ -4,17 +4,18 @@ mod event;
 mod person;
 
 use inquire::{Confirm, Select, Text};
+use regex::Regex;
 use strum::IntoEnumIterator;
 
 use crate::action::Action;
 use crate::event::Event;
 use crate::person::Person;
 use core::panic;
-use std::fs::{self};
+use std::fs;
 use std::path::Path;
 
 fn main() {
-  let contacts = vec![
+  let mut contacts = vec![
     Person::new(
       String::from("John Doe"),
       20,
@@ -57,7 +58,14 @@ fn main() {
       Ok(Action::Manage) => {
         match Select::new(
           "What do you want to do?",
-          vec!["edit", "save", "load", "delete"],
+          vec![
+            "edit",
+            "save",
+            "load",
+            "delete",
+            "add contact",
+            "remove contact",
+          ],
         )
         .prompt()
         {
@@ -229,6 +237,69 @@ fn main() {
             // or user confirms overwrite
             events = deserialized;
             println!("Events successfully loaded from {}.", name);
+          }
+          Ok("add contact") => {
+            // Prompt user for name
+            let name = match Text::new("What is the contact's name?").prompt() {
+              Ok(n) => n,
+              Err(_) => continue,
+            };
+
+            // Prompt user for age, and parse it
+            let age = match Text::new("What is the contact's age?").prompt() {
+              Ok(a) => match a.parse::<u16>() {
+                Ok(a) => a,
+                Err(_) => {
+                  println!("Invalid age.");
+                  continue;
+                }
+              },
+              Err(_) => continue,
+            };
+
+            // Prompt user for email, and validate it
+            let email = match Text::new("What is the contact's email?").prompt() {
+              Ok(e) => {
+                let email_pattern =
+                  Regex::new(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$").unwrap();
+                if email_pattern.is_match(&e) {
+                  e
+                } else {
+                  println!("Invalid email.");
+                  continue;
+                }
+              }
+              Err(_) => continue,
+            };
+
+            // Add contact to existing ones
+            contacts.push(Person::new(name, age, email));
+          }
+
+          Ok("remove contact") => {
+            // Skip if no contacts
+            if contacts.is_empty() {
+              println!("No contacts left.");
+              continue;
+            }
+
+            // Prompt user for contact to remove
+            let to_remove =
+              match Select::new("Which contact do you want to remove?", contacts.to_vec()).prompt()
+              {
+                Ok(c) => c,
+                Err(_) => continue,
+              };
+
+            // Confirm removal
+            match Confirm::new(&format!("Do you want to remove {}?", to_remove)).prompt() {
+              Ok(true) => {
+                contacts.retain(|c| *c != to_remove);
+                println!("Contact {} successfully removed.", to_remove.get_name());
+              }
+              Ok(false) => println!("Ok, no contacts removed."),
+              Err(_) => continue,
+            }
           }
           Err(e) => panic!("{}", e),
           Ok(_) => unreachable!(),
